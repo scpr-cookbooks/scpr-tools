@@ -1,0 +1,20 @@
+---
+driver:
+  name: vagrant
+
+provisioner:
+  name: chef_zero
+
+platforms:
+  - name: ubuntu-12.04
+
+suites:
+  - name: data_disk
+    run_list:
+      - recipe[scpr-tools-test::set_up_volume]
+      - recipe[scpr-tools::default]
+    attributes:
+      scpr_tools:
+        data_disk:
+          fstype: xfs
+

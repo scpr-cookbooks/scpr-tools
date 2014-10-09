@@ -1,0 +1,134 @@
+#!/bin/bash
+
+DEVICE=<%= @data_disk %>
+MOUNT=<%= @mount %>
+VGLABEL=<%= @vglabel %>
+LABEL=<%= @label %>
+FSBIN=/sbin/mkfs.<%= @fstype %>
+RESIZEBIN=<%= @resize_bin %>
+
+MAPPER=/dev/mapper/$VGLABEL-$LABEL
+
+if [ ! -e $FSBIN ]
+then
+  echo "grow_data_disk: Missing fsbin for <%= @fstype %>"
+  exit 1
+fi
+
+if [ -e $DEVICE ]
+then
+  # check if it's a physical volume
+  if pvcheck=`/sbin/pvs $DEVICE`
+  then
+
+    # run pvresize
+    if /sbin/pvresize $DEVICE
+    then
+      # check whether we got any free space
+
+      free_space=`/sbin/pvs $DEVICE --noheadings -o pv_free --units b --nosuffix`
+      free_space="${free_space//[[:space:]]/}"
+
+      if [[ "$free_space" -ne "0" ]]
+      then
+        # -- lvresize -- #
+
+        if /sbin/lvresize -l 100%PVS /dev/$VGLABEL/$LABEL && $RESIZEBIN $MAPPER
+        then
+          echo "Successfully resized $MAPPER"
+        else
+          echo "Failed to resize volume."
+          exit 1
+        fi
+      else
+        # nothing to do...
+        echo "scpr_tools_data_disk: Disk already sized correctly."
+      fi
+
+    else
+      echo "Failed to run pvresize."
+      exit 1
+    fi
+
+  else
+
+    # No volume... Try creating it
+
+    if /sbin/pvcreate $DEVICE && /sbin/vgcreate $VGLABEL $DEVICE && /sbin/lvcreate -l 100%VG -n $LABEL $VGLABEL && $FSBIN $MAPPER
+    then
+      echo "Successfully created volume and file system."
+    else
+      echo "Failed to create volume and file system."
+      exit 1
+    fi
+
+  fi
+
+  # -- Check whether it is mounted -- #
+
+  if grep -qs $MAPPER /proc/mounts
+  then
+    # mounted
+    echo "Disk is mounted."
+    exit
+
+  else
+    # need to mount...
+    if grep -qs $MAPPER /etc/fstab
+    then
+      # should just need to call mount
+
+      if /bin/mount $MAPPER
+      then
+        echo "Mounted disk."
+        exit
+
+      else
+        echo "Failed to mount disk."
+        exit 1
+      fi
+
+    else
+      # need to add it to fstab...
+
+      # first, make sure the mount point exists
+      if [ -e $MOUNT ]
+      then
+        # good... nothing to do
+        echo "Mount point exists."
+
+      else
+        # need to make directory
+
+        if mkdir -p $MOUNT
+        then
+          echo "Created mount point."
+
+        else
+          echo "Failed to create mount point at $MOUNT"
+          exit 1
+        fi
+
+      fi
+
+      # now add it to fstab
+      echo -e "\n$MAPPER\t$MOUNT\t<%= @fstype %>\tdefaults\t0\t3\n" >> /etc/fstab
+
+      # now mount
+      if /bin/mount $MAPPER
+      then
+        echo "Mounted disk."
+        exit
+
+      else
+        echo "Failed to mount disk."
+        exit 1
+      fi
+
+    fi
+  fi
+
+else
+  echo "Device does not exist."
+  exit 1
+fi
