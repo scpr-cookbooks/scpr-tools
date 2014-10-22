@@ -18,9 +18,9 @@ if node.scpr_tools.data_disk
 
   # Install the grow_data_disk script
 
-  template "/etc/init/scpr_tools_data_disk.conf" do
-    action :create
-    mode 0644
+  cookbook_file "/etc/init/scpr_tools_data_disk.conf" do
+    action  :create
+    mode    0644
   end
 
   service "scpr_tools_data_disk" do
