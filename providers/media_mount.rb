@@ -1,4 +1,8 @@
 action :create do
+  # make sure the appropriate nfs pieces are installed
+  include_recipe "apt"
+  package "nfs-common"
+
   # Create the mount point
   directory new_resource.mount_point do
     action :create
