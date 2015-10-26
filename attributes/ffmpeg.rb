@@ -2,6 +2,8 @@ include_attribute "ffmpeg"
 
 default.ffmpeg.install_method = :source
 
+default.ffmpeg.git_repository = "https://github.com/FFmpeg/FFmpeg.git"
+
 default.ffmpeg.compile_flags = [
   "--disable-debug",
   "--enable-pthreads",
@@ -14,3 +16,9 @@ default.ffmpeg.compile_flags = [
 ]
 
 default.ffmpeg.git_revision = "f406bf3fa933be089bd76a95f75ea57b0942f8c5" # 2.2.3
+
+#----------
+
+include_attribute "x264"
+
+default.x264.compile_flags = ["--enable-static","--disable-lavf"]
